@@ -5,6 +5,8 @@ const ejs = require("ejs");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const encrypt = require("mongoose-encryption");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 const app = express();
 
@@ -40,11 +42,13 @@ app.post("/login", function (req, res) {
         if (!item) {
             res.send("Invalid username or password!");
         } else {
-            if(item.password === req.body.password){
-                res.render("secrets");
-            } else {
-                res.send("Invalid password!");
-            }
+            bcrypt.compare(req.body.password, item.password, function(err, result) {
+                if(result) {
+                    res.render("secrets");
+                } else {
+                    res.send("Invalid password!");
+                }
+            });
         }
     })
 })
@@ -56,13 +60,15 @@ app.get("/register", function (req, res) {
 app.post("/register", function (req, res) {
     User.findOne({ email: req.body.username }).then((item) => {
         if (!item) {
-            const newUser = new User({
-                email: req.body.username,
-                password: req.body.password
-            });
+            bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+                const newUser = new User({
+                    email: req.body.username,
+                    password: hash
+                });
 
-            newUser.save().then((err) => {
-                res.send("Successfully registred!");
+                newUser.save().then((err) => {
+                    res.render("secrets");
+                })
             })
         } else {
             res.send("There is already a user with such username");
